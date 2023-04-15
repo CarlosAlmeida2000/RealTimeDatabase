@@ -1,10 +1,13 @@
 package com.example.realtimedatabase;
 
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -23,21 +26,41 @@ import org.json.JSONObject;
 import com.example.realtimedatabase.Adaptadores.Persona;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
+
     private ListView lstPersonas;
+    private ArrayList<Persona> personas;
+    public static TextView txtNombres;
+    private static TextView txtApellidos;
+    private static TextView txtCedula;
+
+    private static String accionActual = "registrar";
+    private static String personaId;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        txtNombres = (TextView) findViewById(R.id.txtNombres);
+        txtApellidos = (TextView) findViewById(R.id.txtApellidos);
+        txtCedula = (TextView) findViewById(R.id.txtCedula);
+
         lstPersonas = (ListView)findViewById(R.id.lsPersonas);
 
-        View header = getLayoutInflater().inflate(R.layout.persona, null);
-        //lstPersonas.addHeaderView(header);
-
         cargar_datos();
+    }
+
+    public static void seleccionar(Persona persona){
+        txtNombres.setText(persona.getNombres());
+        txtApellidos.setText(persona.getApellidos());
+        txtCedula.setText(persona.getCedula());
+        accionActual = "editar";
+        personaId = persona.getId();
     }
 
     private void cargar_datos(){
@@ -51,18 +74,20 @@ public class MainActivity extends AppCompatActivity {
                     // This method is called once with the initial value and again
                     // whenever data at this location is updated.
                     try {
-                        ArrayList<Persona> personas = new ArrayList<Persona>();
-                        String value = dataSnapshot.getValue().toString();
-                        JSONObject json_data = new JSONObject(value.toString());
-                        System.out.println(json_data);
+                        JSONObject json_data = new JSONObject(dataSnapshot.getValue().toString());
                         Iterator<?> json_object = json_data.keys();
+                        personas = new ArrayList<Persona>();
+
                         while(json_object.hasNext() ){
-                            String key = (String)json_object.next();
-                            Iterator<?>datos_persona = json_data.getJSONObject(key).keys();
                             Persona unaPersona = new Persona();
+                            String key1 = (String)json_object.next();
+                            unaPersona.setId(key1);
+                            Iterator<?> datos_persona = json_data.getJSONObject(key1).keys();
+
                             while(datos_persona.hasNext()){
                                 String key2 = (String)datos_persona.next();
-                                String valor = (json_data.getJSONObject(key).get(key2)).toString();
+                                String valor = json_data.getJSONObject(key1).get(key2).toString();
+
                                 switch (key2){
                                     case "nombres":
                                         unaPersona.setNombres(valor);
@@ -79,6 +104,8 @@ public class MainActivity extends AppCompatActivity {
                         }
                         AdaptadorPersona adaptadorPersona = new AdaptadorPersona(getApplicationContext(), personas);
                         lstPersonas.setAdapter(adaptadorPersona);
+                        lstPersonas.refreshDrawableState();
+
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -89,33 +116,43 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         } catch (Exception e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
         }
     }
 
     public void guardar(View view){
-        try {
-            TextView txtnombres = (TextView) findViewById(R.id.txtNombres);
-            TextView txtapellidos = (TextView) findViewById(R.id.txtApellidos);
-            TextView txtcedula = (TextView) findViewById(R.id.txtCedula);
-            FirebaseDatabase database = FirebaseDatabase.getInstance();
-            JSONObject json = new JSONObject();
-            if (txtnombres.getText().toString().length() > 0 & txtapellidos.getText().toString().length() > 0 & txtcedula.getText().toString().length() > 0){
-                json.put("nombres", txtnombres.getText().toString());
-                json.put("apellidos", txtapellidos.getText().toString());
-                json.put("cedula", txtcedula.getText().toString());
-                DatabaseReference myRef = database.getReference("/Uber/Personas/Persona"+ txtcedula.getText().toString());
-                myRef.setValue(json.toString());
-                txtnombres.setText("");
-                txtapellidos.setText("");
-                txtcedula.setText("");
-                Toast.makeText(this, "Guardado!!", Toast.LENGTH_SHORT).show();
-                cargar_datos();
+
+        if (txtNombres.getText().toString().length() > 0 & txtApellidos.getText().toString().length() > 0 & txtCedula.getText().toString().length() > 0){
+
+            Map<String, Object> map = new HashMap<>();
+            map.put("nombres", '"' + txtNombres.getText().toString() + '"');
+            map.put("apellidos", '"' + txtApellidos.getText().toString() + '"');
+            map.put("cedula", '"' + txtCedula.getText().toString() + '"');
+
+            if(accionActual.equals("registrar")){
+                if(RealTimeDB.post("/Uber/Personas", map)){
+                    txtNombres.setText("");
+                    txtApellidos.setText("");
+                    txtCedula.setText("");
+                    Toast.makeText(this, "Datos registrados!!", Toast.LENGTH_SHORT).show();
+                    cargar_datos();
+                }else{
+                    Toast.makeText(this, "Ups! sucedió un problema vuelve a intentarlo", Toast.LENGTH_SHORT).show();
+                }
             }else{
-                Toast.makeText(this, "Todos los campos son obligatorios!!", Toast.LENGTH_SHORT).show();
+                if(RealTimeDB.put("/Uber/Personas/" + personaId, map)){
+                    txtNombres.setText("");
+                    txtApellidos.setText("");
+                    txtCedula.setText("");
+                    accionActual = "registrar";
+                    Toast.makeText(this, "Datos modificados!!", Toast.LENGTH_SHORT).show();
+                    cargar_datos();
+                }else{
+                    Toast.makeText(this, "Ups! sucedió un problema vuelve a intentarlo", Toast.LENGTH_SHORT).show();
+                }
             }
-        } catch (JSONException e) {
-            Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+        }else{
+            Toast.makeText(this, "Todos los campos son obligatorios!!", Toast.LENGTH_SHORT).show();
         }
     }
 }
