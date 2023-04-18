@@ -74,38 +74,45 @@ public class MainActivity extends AppCompatActivity {
                     // This method is called once with the initial value and again
                     // whenever data at this location is updated.
                     try {
-                        JSONObject json_data = new JSONObject(dataSnapshot.getValue().toString());
-                        Iterator<?> json_object = json_data.keys();
-                        personas = new ArrayList<Persona>();
+                        Object data = dataSnapshot.getValue();
+                        if( data != null) {
+                            JSONObject json_data = new JSONObject(data.toString());
+                            Iterator<?> json_object = json_data.keys();
+                            personas = new ArrayList<Persona>();
 
-                        while(json_object.hasNext() ){
-                            Persona unaPersona = new Persona();
-                            String key1 = (String)json_object.next();
-                            unaPersona.setId(key1);
-                            Iterator<?> datos_persona = json_data.getJSONObject(key1).keys();
+                            while (json_object.hasNext()) {
+                                Persona unaPersona = new Persona();
+                                String key1 = (String) json_object.next();
+                                unaPersona.setId(key1);
+                                Iterator<?> datos_persona = json_data.getJSONObject(key1).keys();
 
-                            while(datos_persona.hasNext()){
-                                String key2 = (String)datos_persona.next();
-                                String valor = json_data.getJSONObject(key1).get(key2).toString();
+                                while (datos_persona.hasNext()) {
+                                    String key2 = (String) datos_persona.next();
+                                    String valor = json_data.getJSONObject(key1).get(key2).toString();
 
-                                switch (key2){
-                                    case "nombres":
-                                        unaPersona.setNombres(valor);
-                                        break;
-                                    case "apellidos":
-                                        unaPersona.setApellidos(valor);
-                                        break;
-                                    case "cedula":
-                                        unaPersona.setCedula(valor);
-                                        break;
+                                    switch (key2) {
+                                        case "nombres":
+                                            unaPersona.setNombres(valor);
+                                            break;
+                                        case "apellidos":
+                                            unaPersona.setApellidos(valor);
+                                            break;
+                                        case "cedula":
+                                            unaPersona.setCedula(valor);
+                                            break;
+                                    }
                                 }
+                                personas.add(unaPersona);
                             }
-                            personas.add(unaPersona);
+                            AdaptadorPersona adaptadorPersona = new AdaptadorPersona(getApplicationContext(), personas);
+                            lstPersonas.setAdapter(adaptadorPersona);
+                            lstPersonas.refreshDrawableState();
+                        }else{
+                            personas = new ArrayList<Persona>();
+                            AdaptadorPersona adaptadorPersona = new AdaptadorPersona(getApplicationContext(), personas);
+                            lstPersonas.setAdapter(adaptadorPersona);
+                            lstPersonas.refreshDrawableState();
                         }
-                        AdaptadorPersona adaptadorPersona = new AdaptadorPersona(getApplicationContext(), personas);
-                        lstPersonas.setAdapter(adaptadorPersona);
-                        lstPersonas.refreshDrawableState();
-
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
@@ -135,7 +142,6 @@ public class MainActivity extends AppCompatActivity {
                     txtApellidos.setText("");
                     txtCedula.setText("");
                     Toast.makeText(this, "Datos registrados!!", Toast.LENGTH_SHORT).show();
-                    cargar_datos();
                 }else{
                     Toast.makeText(this, "Ups! sucedió un problema vuelve a intentarlo", Toast.LENGTH_SHORT).show();
                 }
@@ -146,7 +152,6 @@ public class MainActivity extends AppCompatActivity {
                     txtCedula.setText("");
                     accionActual = "registrar";
                     Toast.makeText(this, "Datos modificados!!", Toast.LENGTH_SHORT).show();
-                    cargar_datos();
                 }else{
                     Toast.makeText(this, "Ups! sucedió un problema vuelve a intentarlo", Toast.LENGTH_SHORT).show();
                 }
