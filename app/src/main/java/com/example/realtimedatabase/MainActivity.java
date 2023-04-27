@@ -18,6 +18,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 
 import org.json.JSONException;
@@ -68,58 +69,34 @@ public class MainActivity extends AppCompatActivity {
 
             FirebaseDatabase database = FirebaseDatabase.getInstance();
             DatabaseReference myRef = database.getReference("/Uber/Personas");
+
+            //Query query = myRef.orderByChild("nombres").equalTo(q);
+            //Query query = myRef.orderByChild("nombres").startAt(q).endAt(q + "\uf8ff");
+
             myRef.addValueEventListener(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
-                    // This method is called once with the initial value and again
-                    // whenever data at this location is updated.
-                    try {
-                        Object data = dataSnapshot.getValue();
-                        if( data != null) {
-                            JSONObject json_data = new JSONObject(data.toString());
-                            Iterator<?> json_object = json_data.keys();
-                            personas = new ArrayList<Persona>();
+                    personas = new ArrayList<Persona>();
+                    for (DataSnapshot childSnapshot : dataSnapshot.getChildren()) {
+                        // Accede a los datos de cada objeto encontrado en la consulta.
+                        Persona unaPersona = new Persona();
 
-                            while (json_object.hasNext()) {
-                                Persona unaPersona = new Persona();
-                                String key1 = (String) json_object.next();
-                                unaPersona.setId(key1);
-                                Iterator<?> datos_persona = json_data.getJSONObject(key1).keys();
+                        unaPersona.setId(childSnapshot.getKey());
+                        unaPersona.setNombres(childSnapshot.child("nombres").getValue(String.class));
+                        unaPersona.setApellidos(childSnapshot.child("apellidos").getValue(String.class));
+                        unaPersona.setCedula(childSnapshot.child("cedula").getValue(String.class));
 
-                                while (datos_persona.hasNext()) {
-                                    String key2 = (String) datos_persona.next();
-                                    String valor = json_data.getJSONObject(key1).get(key2).toString();
-
-                                    switch (key2) {
-                                        case "nombres":
-                                            unaPersona.setNombres(valor);
-                                            break;
-                                        case "apellidos":
-                                            unaPersona.setApellidos(valor);
-                                            break;
-                                        case "cedula":
-                                            unaPersona.setCedula(valor);
-                                            break;
-                                    }
-                                }
-                                personas.add(unaPersona);
-                            }
-                            AdaptadorPersona adaptadorPersona = new AdaptadorPersona(getApplicationContext(), personas);
-                            lstPersonas.setAdapter(adaptadorPersona);
-                            lstPersonas.refreshDrawableState();
-                        }else{
-                            personas = new ArrayList<Persona>();
-                            AdaptadorPersona adaptadorPersona = new AdaptadorPersona(getApplicationContext(), personas);
-                            lstPersonas.setAdapter(adaptadorPersona);
-                            lstPersonas.refreshDrawableState();
-                        }
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                        personas.add(unaPersona);
                     }
+
+                    AdaptadorPersona adaptadorPersona = new AdaptadorPersona(getApplicationContext(), personas);
+                    lstPersonas.setAdapter(adaptadorPersona);
+                    lstPersonas.refreshDrawableState();
                 }
+
                 @Override
-                public void onCancelled(DatabaseError error) {
-                    // Failed to read value
+                public void onCancelled(DatabaseError databaseError) {
+                    // Maneja los errores que puedan ocurrir
                 }
             });
         } catch (Exception e) {
@@ -132,9 +109,9 @@ public class MainActivity extends AppCompatActivity {
         if (txtNombres.getText().toString().length() > 0 & txtApellidos.getText().toString().length() > 0 & txtCedula.getText().toString().length() > 0){
 
             Map<String, Object> map = new HashMap<>();
-            map.put("nombres", '"' + txtNombres.getText().toString() + '"');
-            map.put("apellidos", '"' + txtApellidos.getText().toString() + '"');
-            map.put("cedula", '"' + txtCedula.getText().toString() + '"');
+            map.put("nombres", txtNombres.getText().toString().toUpperCase());
+            map.put("apellidos", txtApellidos.getText().toString().toUpperCase());
+            map.put("cedula", txtCedula.getText().toString());
 
             if(accionActual.equals("registrar")){
                 if(RealTimeDB.post("/Uber/Personas", map)){
